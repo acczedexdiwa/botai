@@ -22,7 +22,7 @@ from telegram.ext import (
 from telegram.constants import ChatMemberStatus, ParseMode, ChatAction
 
 # =================== CONFIG ===================
-BOT_TOKEN = "AAH11mD6r0BsAohLA_kjLys79uyZi4hcgxk"
+BOT_TOKEN = "8958951322:AAH11mD6r0BsAohLA_kjLys79uyZi4hcgxk"
 DB_FILE = "bot_database.db"
 OWNER_ID = 6192843541  # ใส่ user_id เจ้าของบอท
 
