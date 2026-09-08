@@ -1,9 +1,15 @@
+# telegram_guard_bot_v2.py
+# Python 3.10+ | python-telegram-bot 20.7
+# pip install python-telegram-bot==20.7
+# ระบบครบจบ - แอดมิน/whitelist ทำอะไรก็ได้ คนทั่วไปโดนตามระบบ
+
 import re
 import json
 import asyncio
 import logging
 import sqlite3
-from datetime import datetime, timedelta, time
+import time
+from datetime import datetime, timedelta
 from pathlib import Path
 from telegram import (
     Update, ChatPermissions, ChatMember, Message,
@@ -16,7 +22,7 @@ from telegram.ext import (
 from telegram.constants import ChatMemberStatus, ParseMode, ChatAction
 
 # =================== CONFIG ===================
-BOT_TOKEN = "8958951322:AAH11mD6r0BsAohLA_kjLys79uyZi4hcgxk"
+BOT_TOKEN = "AAH11mD6r0BsAohLA_kjLys79uyZi4hcgxk"
 DB_FILE = "bot_database.db"
 OWNER_ID = 6192843541  # ใส่ user_id เจ้าของบอท
 
@@ -230,13 +236,6 @@ async def is_admin_or_owner(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     except Exception:
         return False
 
-async def is_target_admin(context, chat_id, user_id) -> bool:
-    try:
-        member = await context.bot.get_chat_member(chat_id, user_id)
-        return member.status in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR]
-    except Exception:
-        return False
-
 def detect_link(text):
     for p in LINK_PATTERNS:
         if re.search(p, text, re.IGNORECASE):
@@ -325,6 +324,24 @@ async def punish(update, context, reason):
     except Exception:
         pass
 
+# =================== TOGGLE HANDLER FACTORY ===================
+# ใช้ sync function สร้าง handler - แก้ SyntaxError แล้ว
+def create_toggle_handler(setting_key):
+    async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not await is_admin_or_owner(update, context):
+            return
+        chat_id = update.effective_chat.id
+        if len(context.args) > 0:
+            val = context.args[0].lower()
+            new_val = 1 if val in ["on", "true", "1", "yes"] else 0
+        else:
+            current = db.get_settings(chat_id)[setting_key]
+            new_val = 0 if current else 1
+        db.update_setting(chat_id, setting_key, new_val)
+        status = "เปิด" if new_val else "ปิด"
+        await update.message.reply_text(f"✅ `{setting_key}` = {status}", parse_mode=ParseMode.MARKDOWN)
+    return handler
+
 # =================== COMMAND HANDLERS ===================
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_admin_or_owner(update, context):
@@ -400,8 +417,8 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
 /unlock - ปลดล็อค
 
 **📋 Whitelist:**
-/wl add <user_id|@username>
-/wl remove <user_id|@username>
+/wl add <user_id>
+/wl remove <user_id>
 /wl list
 
 **📜 Logs:**
@@ -494,22 +511,6 @@ async def cmd_off(update: Update, context: ContextTypes.DEFAULT_TYPE):
         db.update_setting(chat_id, k, 0)
     await update.message.reply_text("🔴 ปิดระบบหลักทั้งหมด!")
 
-# Toggle shortcuts
-async def make_toggle(name):
-    async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        if not await is_admin_or_owner(update, context):
-            return
-        chat_id = update.effective_chat.id
-        if len(context.args) > 0:
-            val = context.args[0].lower()
-            new_val = 1 if val in ["on", "true", "1"] else 0
-        else:
-            current = db.get_settings(chat_id)[name]
-            new_val = 0 if current else 1
-        db.update_setting(chat_id, name, new_val)
-        await update.message.reply_text(f"✅ `{name}` = `{bool(new_val)}`", parse_mode=ParseMode.MARKDOWN)
-    return handler
-
 # Whitelist commands
 async def cmd_wl(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_admin_or_owner(update, context):
@@ -530,25 +531,38 @@ async def cmd_wl(update: Update, context: ContextTypes.DEFAULT_TYPE):
         target = context.args[1]
         try:
             if target.startswith("@"):
-                await update.message.reply_text("❌ ต้องใช้ user_id ไม่ใช่ @username\nลองให้ user ส่งข้อความแล้วดู id จาก log")
+                await update.message.reply_text("❌ ต้องใช้ user_id ไม่ใช่ @username\nให้ user ส่งข้อความในกลุ่ม แล้วดู id จาก log ได้")
                 return
             uid = int(target)
-            user = await context.bot.get_chat(uid)
-            db.add_whitelist(uid, user.username, update.effective_user.id)
-            await update.message.reply_text(f"✅ เพิ่ม `{uid}` (@{user.username}) ใน whitelist", parse_mode=ParseMode.MARKDOWN)
+            try:
+                user = await context.bot.get_chat(uid)
+                username = user.username
+            except Exception:
+                username = None
+            db.add_whitelist(uid, username, update.effective_user.id)
+            await update.message.reply_text(f"✅ เพิ่ม `{uid}` ใน whitelist", parse_mode=ParseMode.MARKDOWN)
+        except ValueError:
+            await update.message.reply_text("❌ user_id ต้องเป็นตัวเลข")
         except Exception as e:
-            await update.message.reply_text(f"❌ ผิดพลาด: {e}\nใช้ user_id (ตัวเลข) เท่านั้น")
+            await update.message.reply_text(f"❌ ผิดพลาด: {e}")
     elif action == "remove" and len(context.args) > 1:
         try:
             uid = int(context.args[1])
             db.remove_whitelist(uid)
             await update.message.reply_text(f"🗑️ ลบ `{uid}` แล้ว", parse_mode=ParseMode.MARKDOWN)
+        except ValueError:
+            await update.message.reply_text("❌ user_id ต้องเป็นตัวเลข")
         except Exception as e:
             await update.message.reply_text(f"❌ {e}")
     elif action == "list":
         wl = db.get_whitelist()
-        text = "📋 **Whitelist:**\n\n" + "\n".join([f"• `{u[0]}` {('@'+u[1]) if u[1] else ''}" for u in wl])
-        await update.message.reply_text(text or "ว่าง", parse_mode=ParseMode.MARKDOWN)
+        if not wl:
+            await update.message.reply_text("📋 Whitelist ว่าง")
+            return
+        text = "📋 **Whitelist:**\n\n"
+        for uid, uname, _ in wl:
+            text += f"• `{uid}` {('@'+uname) if uname else ''}\n"
+        await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
 
 # Moderation
 async def cmd_ban(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -665,33 +679,26 @@ async def cmd_unwarn(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cmd_warns(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_admin_or_owner(update, context):
         return
-    target_user = None
     if update.message.reply_to_message:
-        target_user = update.message.reply_to_message.from_user
-    elif context.args:
-        try:
-            target_user = await context.bot.get_chat(int(context.args[0]))
-        except Exception:
-            pass
+        user = update.message.reply_to_message.from_user
+        count = db.get_violations(user.id, update.effective_chat.id)
+        await update.message.reply_text(f"📊 {user.mention_html()}: {count} ครั้ง", parse_mode=ParseMode.HTML)
+        return
     
-    if target_user:
-        count = db.get_violations(target_user.id, update.effective_chat.id)
-        await update.message.reply_text(f"📊 {target_user.mention_html()}: {count} ครั้ง", parse_mode=ParseMode.HTML)
-    else:
-        c = sqlite3.connect(DB_FILE).cursor()
-        c.execute("SELECT user_id, count FROM violations WHERE chat_id = ? ORDER BY count DESC LIMIT 20", (update.effective_chat.id,))
-        rows = c.fetchall()
-        if not rows:
-            await update.message.reply_text("📊 ไม่มี violations")
-            return
-        text = "📊 **Violations (Top 20):**\n\n"
-        for uid, cnt in rows:
-            try:
-                u = await context.bot.get_chat(uid)
-                text += f"• {u.mention_html()}: {cnt}\n"
-            except Exception:
-                text += f"• `{uid}`: {cnt}\n"
-        await update.message.reply_text(text, parse_mode=ParseMode.HTML)
+    c = db.conn.cursor()
+    c.execute("SELECT user_id, count FROM violations WHERE chat_id = ? ORDER BY count DESC LIMIT 20", (update.effective_chat.id,))
+    rows = c.fetchall()
+    if not rows:
+        await update.message.reply_text("📊 ไม่มี violations")
+        return
+    text = "📊 **Violations (Top 20):**\n\n"
+    for uid, cnt in rows:
+        try:
+            u = await context.bot.get_chat(uid)
+            text += f"• {u.mention_html()}: {cnt}\n"
+        except Exception:
+            text += f"• `{uid}`: {cnt}\n"
+    await update.message.reply_text(text, parse_mode=ParseMode.HTML)
 
 async def cmd_resetwarns(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_admin_or_owner(update, context):
@@ -723,9 +730,9 @@ async def cmd_setmute(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cmd_setwelcome(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_admin_or_owner(update, context):
         return
-    msg = " ".join(context.args)
+    msg = " ".join(context.args) if context.args else "ยินดีต้อนรับ!"
     db.update_setting(update.effective_chat.id, "welcome_message", msg)
-    await update.message.reply_text(f"✅ Welcome message ตั้งแล้ว")
+    await update.message.reply_text(f"✅ Welcome message ตั้งแล้ว: {msg}")
 
 async def cmd_togglewelcome(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_admin_or_owner(update, context):
@@ -782,15 +789,15 @@ async def cmd_logs(update: Update, context: ContextTypes.DEFAULT_TYPE):
             name = u.first_name
         except Exception:
             name = str(uid)
-        text += f"• {ts}: {name} - {reason}\n"
+        text += f"• `{ts}`: {name} - {reason}\n"
     await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
 
 async def cmd_clearlogs(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_admin_or_owner(update, context):
         return
-    c = sqlite3.connect(DB_FILE).cursor()
+    c = db.conn.cursor()
     c.execute("DELETE FROM violations_log WHERE chat_id = ?", (update.effective_chat.id,))
-    sqlite3.connect(DB_FILE).commit()
+    db.conn.commit()
     await update.message.reply_text("🗑️ ล้าง log แล้ว")
 
 # Purge messages
@@ -800,21 +807,24 @@ async def cmd_purge(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
         await update.message.reply_text("💡 /purge <จำนวน>")
         return
-    n = int(context.args[0])
-    deleted = 0
-    async for msg in context.bot.get_chat_history(update.effective_chat.id, limit=n+1):
-        if msg.message_id >= update.message.message_id - n:
-            try:
-                await msg.delete()
-                deleted += 1
-            except Exception:
-                pass
-    m = await update.message.reply_text(f"🧹 ลบ {deleted} ข้อความ")
-    await asyncio.sleep(5)
     try:
-        await m.delete()
-    except Exception:
-        pass
+        n = int(context.args[0])
+        deleted = 0
+        async for msg in context.bot.get_chat_history(update.effective_chat.id, limit=n+1):
+            if msg.message_id >= update.message.message_id - n:
+                try:
+                    await msg.delete()
+                    deleted += 1
+                except Exception:
+                    pass
+        m = await update.message.reply_text(f"🧹 ลบ {deleted} ข้อความ")
+        await asyncio.sleep(5)
+        try:
+            await m.delete()
+        except Exception:
+            pass
+    except Exception as e:
+        await update.message.reply_text(f"❌ {e}")
 
 async def cmd_del(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_admin_or_owner(update, context):
@@ -831,7 +841,10 @@ async def cmd_chatinfo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_admin_or_owner(update, context):
         return
     chat = update.effective_chat
-    count = await context.bot.get_chat_member_count(chat.id)
+    try:
+        count = await context.bot.get_chat_member_count(chat.id)
+    except Exception:
+        count = "?"
     text = f"""ℹ️ **ข้อมูลกลุ่ม:**
 • ชื่อ: {chat.title}
 • ID: `{chat.id}`
@@ -885,7 +898,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = query.from_user
     chat = query.message.chat
     
-    # Check permission
     if not await is_admin_or_owner(update, context):
         return
     
@@ -910,11 +922,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
     settings = db.get_settings(chat.id)
     
-    # Skip admins/whitelisted - they do anything
+    # แอดมิน/whitelist ทำอะไรก็ได้
     if await is_admin_or_owner(update, context):
         return
     
-    # Skip if muted
+    # ถ้าโดน mute
     if db.is_muted(user.id, chat.id):
         try:
             await update.message.delete()
@@ -922,7 +934,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pass
         return
     
-    # Check if locked
+    # ถ้ากลุ่มล็อค
     if settings["locked"]:
         try:
             await update.message.delete()
@@ -933,7 +945,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reasons = []
     text = update.message.text or ""
     
-    # 1. Link detection
+    # 1. Link
     if settings["anti_link"] and detect_link(text):
         reasons.append("🔗 ส่งลิ้งค์")
     if settings["anti_invite"] and detect_invite(text):
@@ -984,20 +996,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reasons.append("🎬 วิดีโอ")
     if settings["anti_gif"] and update.message.animation:
         reasons.append("🎞️ GIF")
-    if settings["anti_emoji"] and update.message.entities:
-        for e in update.message.entities:
-            if e.type == "bold_italic" or "emoji" in str(e.type).lower():
-                if e.type in ["custom_emoji"]:
-                    reasons.append("😀 Emoji")
-                    break
     
-    # 10. Spam (repeated messages)
+    # 10. Spam (flood)
     if settings["anti_spam"]:
         if "last_msgs" not in context.user_data:
             context.user_data["last_msgs"] = []
         last = context.user_data["last_msgs"]
         last.append((text, time.time()))
-        # เก็บแค่ 10 ข้อความล่าสุดใน 30 วิ
         now_t = time.time()
         last[:] = [m for m in last if now_t - m[1] < 30]
         if len(last) >= 3:
@@ -1088,7 +1093,7 @@ def main():
     ]:
         app.add_handler(CommandHandler(cmd, handler))
     
-    # Anti toggles
+    # Anti toggles - ใช้ sync factory แก้ SyntaxError แล้ว
     toggles = [
         ("antispam", "anti_spam"), ("antilink", "anti_link"),
         ("antiforward", "anti_forward"), ("antisticker", "anti_sticker"),
@@ -1101,7 +1106,9 @@ def main():
         ("antigif", "anti_gif"),
     ]
     for cmd, key in toggles:
-        app.add_handler(CommandHandler(cmd, await make_toggle(key)))
+        # สร้าง handler ครั้งเดียว ไม่ต้อง await
+        handler = create_toggle_handler(key)
+        app.add_handler(CommandHandler(cmd, handler))
     
     # Callback
     app.add_handler(CallbackQueryHandler(callback_handler))
