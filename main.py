@@ -1,6 +1,6 @@
-# telegram_guard_bot_v2.py
-# Python 3.10+ | python-telegram-bot 20.7 (ใช้เวอร์ชั่นนี้เท่านั้น เพราะ 20.8+ มี bug กับ Python 3.13)
-# pip install python-telegram-bot==20.7
+# telegram_guard_bot_v3.py
+# Python 3.10+ | python-telegram-bot 21.6+
+# pip install python-telegram-bot==21.6
 # ระบบครบจบ - แอดมิน/whitelist ทำอะไรก็ได้ คนทั่วไปโดนตามระบบ
 
 import re
@@ -354,7 +354,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
          InlineKeyboardButton("🔒 ล็อคกลุ่ม", callback_data="lock")],
     ]
     await update.message.reply_text(
-        "🤖 **บอทดูแลกลุ่ม v2.0**\n\nเลือกเมนู:",
+        "🤖 **บอทดูแลกลุ่ม v3.0**\n\nเลือกเมนู:",
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
@@ -365,56 +365,30 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = """
 📖 **คำสั่งทั้งหมด:**
 
-**🔧 ระบบ:**
-/start - เมนูหลัก
-/help - คำสั่งทั้งหมด
-/status - สถานะระบบ
-/settings - ตั้งค่า
+**🔧 ระบบ:** /start /help /status /settings
 
-**👮 จัดการสมาชิก:**
-/ban - แบน user
-/unban - ปลดแบน
-/mute - ปิดปาก
-/unmute - เปิดปาก
-/kick - เตะออก
-/warn - เตือน
-/unwarn - ลบเตือน
-/warns - ดูเตือน
-/resetwarns - รีเซ็ตเตือนทั้งหมด
+**👮 จัดการ:** /ban /unban /mute /unmute /kick
+/warn /unwarn /warns /resetwarns
 
-**🛡️ ระบบป้องกัน (17 ตัว):**
+**🛡️ ป้องกัน (17):**
 /antispam /antilink /antiforward /antisticker
 /antibadword /antiinvite /anticrypto /antigambling
 /antiphone /anticaps /antilongtext /antiline
 /antiemoji /antiimage /antivoice /antivideo /antigif
 
 **📊 ตั้งค่า:**
-/setwarns <จำนวน>
-/setmute <วินาที>
-/setwelcome <ข้อความ>
-/togglewelcome
-/nightmode on/off
-/setnight <start> <end>
+/setwarns /setmute /setwelcome /togglewelcome
+/nightmode /setnight
 
-**🔒 ล็อคกลุ่ม:**
-/lock - ล็อค (ห้ามส่งอะไร)
-/unlock - ปลดล็อค
+**🔒 Lock:** /lock /unlock
 
-**📋 Whitelist:**
-/wl add <user_id>
-/wl remove <user_id>
-/wl list
+**📋 Whitelist:** /wl add/remove/list
 
-**📜 Logs:**
-/logs - ดู log
-/clearlogs - ล้าง log
+**📜 Logs:** /logs /clearlogs
 
-**🧹 ล้างข้อมูล:**
-/purge - ลบข้อความ
-/del - ลบข้อความที่ตอบ
+**🧹 Clean:** /purge /del
 
-**ℹ️ ข้อมูล:**
-/chatinfo /userinfo /id /me
+**ℹ️ Info:** /chatinfo /userinfo /id /me
 """
     await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
 
@@ -425,32 +399,31 @@ async def cmd_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     s = db.get_settings(chat_id)
     text = f"""📊 **สถานะกลุ่ม**
 
-🛡️ **ระบบป้องกัน:**
+🛡️ **ป้องกัน:**
 • 🔗 ลิ้งค์: {'✅' if s['anti_link'] else '❌'}
 • 🤐 คำหยาบ: {'✅' if s['anti_badword'] else '❌'}
 • 📨 สแปม: {'✅' if s['anti_spam'] else '❌'}
 • 🎭 สติกเกอร์: {'✅' if s['anti_sticker'] else '❌'}
 • ↪️ Forward: {'✅' if s['anti_forward'] else '❌'}
-• 🖼️ รูปภาพ: {'✅' if s['anti_image'] else '❌'}
+• 🖼️ รูป: {'✅' if s['anti_image'] else '❌'}
 • 🎤 เสียง: {'✅' if s['anti_voice'] else '❌'}
 • 🎬 วิดีโอ: {'✅' if s['anti_video'] else '❌'}
 • 🎞️ GIF: {'✅' if s['anti_gif'] else '❌'}
 • 😀 Emoji: {'✅' if s['anti_emoji'] else '❌'}
-• 🔠 ตัวพิมพ์ใหญ่: {'✅' if s['anti_caps'] else '❌'}
-• 📏 ข้อความยาว: {'✅' if s['anti_long_text'] else '❌'}
+• 🔠 Caps: {'✅' if s['anti_caps'] else '❌'}
+• 📏 ยาว: {'✅' if s['anti_long_text'] else '❌'}
 • 📝 หลายบรรทัด: {'✅' if s['anti_line'] else '❌'}
 • 💌 Invite: {'✅' if s['anti_invite'] else '❌'}
-• 👤 @Username: {'✅' if s['anti_username'] else '❌'}
-• 📞 เบอร์โทร: {'✅' if s['anti_phone'] else '❌'}
+• 👤 @User: {'✅' if s['anti_username'] else '❌'}
+• 📞 เบอร์: {'✅' if s['anti_phone'] else '❌'}
 • 💰 คริปโต: {'✅' if s['anti_crypto'] else '❌'}
 • 🎰 พนัน: {'✅' if s['anti_gambling'] else '❌'}
 
 ⚙️ **ตั้งค่า:**
 • 🔢 Max warns: {s['max_warns']}
 • ⏱️ Mute: {s['mute_duration']//60} นาที
-• 🗑️ ลบข้อความ: {'✅' if s['delete_on_violate'] else '❌'}
 • 👋 Welcome: {'✅' if s['welcome_enabled'] else '❌'}
-• 🌙 Night mode: {'✅' if s['night_mode'] else '❌'} ({s['night_start']}:00-{s['night_end']}:00)
+• 🌙 Night: {'✅' if s['night_mode'] else '❌'} ({s['night_start']}-{s['night_end']})
 • 🔒 Locked: {'✅' if s['locked'] else '❌'}
 """
     await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
@@ -460,7 +433,6 @@ async def cmd_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     if len(context.args) < 2:
         await cmd_status(update, context)
-        await update.message.reply_text("\n💡 ใช้: /settings <key> <value>")
         return
     key = context.args[0]
     val = context.args[1].lower()
@@ -511,7 +483,7 @@ async def cmd_wl(update: Update, context: ContextTypes.DEFAULT_TYPE):
         target = context.args[1]
         try:
             if target.startswith("@"):
-                await update.message.reply_text("❌ ต้องใช้ user_id ไม่ใช่ @username")
+                await update.message.reply_text("❌ ต้องใช้ user_id")
                 return
             uid = int(target)
             try:
@@ -529,11 +501,11 @@ async def cmd_wl(update: Update, context: ContextTypes.DEFAULT_TYPE):
             db.remove_whitelist(uid)
             await update.message.reply_text(f"🗑️ ลบ `{uid}` แล้ว", parse_mode=ParseMode.MARKDOWN)
         except ValueError:
-            await update.message.reply_text("❌ user_id ต้องเป็นตัวเลข")
+            await update.message.reply_text("❌ ต้องเป็นตัวเลข")
     elif action == "list":
         wl = db.get_whitelist()
         if not wl:
-            await update.message.reply_text("📋 Whitelist ว่าง")
+            await update.message.reply_text("📋 ว่าง")
             return
         text = "📋 **Whitelist:**\n\n"
         for uid, uname, _ in wl:
@@ -544,7 +516,7 @@ async def cmd_ban(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_admin_or_owner(update, context):
         return
     if not update.message.reply_to_message:
-        await update.message.reply_text("💡 ตอบกลับข้อความคนที่จะแบน")
+        await update.message.reply_text("💡 ตอบกลับข้อความ")
         return
     user = update.message.reply_to_message.from_user
     try:
@@ -613,7 +585,7 @@ async def cmd_kick(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         await context.bot.ban_chat_member(update.effective_chat.id, user.id)
         await context.bot.unban_chat_member(update.effective_chat.id, user.id)
-        await update.message.reply_text(f"👢 เตะ {user.mention_html()} ออกแล้ว", parse_mode=ParseMode.HTML)
+        await update.message.reply_text(f"👢 เตะ {user.mention_html()} ออก", parse_mode=ParseMode.HTML)
     except Exception as e:
         await update.message.reply_text(f"❌ {e}")
 
@@ -624,9 +596,9 @@ async def cmd_warn(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("💡 ตอบกลับข้อความ")
         return
     user = update.message.reply_to_message.from_user
-    count = db.add_violation(user.id, update.effective_chat.id, "Manual warn")
+    count = db.add_violation(user.id, update.effective_chat.id, "Manual")
     s = db.get_settings(update.effective_chat.id)
-    text = f"⚠️ {user.mention_html()} โดนเตือน {count}/{s['max_warns']}"
+    text = f"⚠️ {user.mention_html()} {count}/{s['max_warns']}"
     if count >= s['max_warns']:
         try:
             until = datetime.now() + timedelta(seconds=s['mute_duration'])
@@ -635,7 +607,7 @@ async def cmd_warn(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 permissions=ChatPermissions(can_send_messages=False),
                 until_date=until
             )
-            text += f"\n🔇 Mute {s['mute_duration']//60} นาที!"
+            text += f"\n🔇 Mute!"
             db.reset_violations(update.effective_chat.id, user.id)
         except Exception as e:
             text += f"\n❌ {e}"
@@ -657,7 +629,7 @@ async def cmd_warns(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.reply_to_message:
         user = update.message.reply_to_message.from_user
         count = db.get_violations(user.id, update.effective_chat.id)
-        await update.message.reply_text(f"📊 {user.mention_html()}: {count} ครั้ง", parse_mode=ParseMode.HTML)
+        await update.message.reply_text(f"📊 {user.mention_html()}: {count}", parse_mode=ParseMode.HTML)
         return
     
     c = db.conn.cursor()
@@ -666,7 +638,7 @@ async def cmd_warns(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not rows:
         await update.message.reply_text("📊 ไม่มี violations")
         return
-    text = "📊 **Violations (Top 20):**\n\n"
+    text = "📊 **Violations:**\n\n"
     for uid, cnt in rows:
         try:
             u = await context.bot.get_chat(uid)
@@ -679,13 +651,12 @@ async def cmd_resetwarns(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_admin_or_owner(update, context):
         return
     db.reset_violations(update.effective_chat.id)
-    await update.message.reply_text("🔄 รีเซ็ต violations ทั้งหมดแล้ว!")
+    await update.message.reply_text("🔄 รีเซ็ตแล้ว!")
 
 async def cmd_setwarns(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_admin_or_owner(update, context):
         return
     if not context.args:
-        await update.message.reply_text("💡 /setwarns <จำนวน>")
         return
     n = int(context.args[0])
     db.update_setting(update.effective_chat.id, "max_warns", n)
@@ -695,18 +666,17 @@ async def cmd_setmute(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_admin_or_owner(update, context):
         return
     if not context.args:
-        await update.message.reply_text("💡 /setmute <วินาที>")
         return
     n = int(context.args[0])
     db.update_setting(update.effective_chat.id, "mute_duration", n)
-    await update.message.reply_text(f"✅ Mute duration = {n} วินาที ({n//60} นาที)")
+    await update.message.reply_text(f"✅ Mute = {n} วินาที")
 
 async def cmd_setwelcome(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_admin_or_owner(update, context):
         return
     msg = " ".join(context.args) if context.args else "ยินดีต้อนรับ!"
     db.update_setting(update.effective_chat.id, "welcome_message", msg)
-    await update.message.reply_text(f"✅ Welcome message ตั้งแล้ว: {msg}")
+    await update.message.reply_text(f"✅ Welcome: {msg}")
 
 async def cmd_togglewelcome(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_admin_or_owner(update, context):
@@ -723,13 +693,12 @@ async def cmd_nightmode(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         s = db.get_settings(update.effective_chat.id)
         db.update_setting(update.effective_chat.id, "night_mode", 0 if s["night_mode"] else 1)
-    await update.message.reply_text("✅ Night mode toggle")
+    await update.message.reply_text("✅ Night toggled")
 
 async def cmd_setnight(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_admin_or_owner(update, context):
         return
     if len(context.args) < 2:
-        await update.message.reply_text("💡 /setnight <start_hour> <end_hour>")
         return
     db.update_setting(update.effective_chat.id, "night_start", int(context.args[0]))
     db.update_setting(update.effective_chat.id, "night_end", int(context.args[1]))
@@ -739,29 +708,24 @@ async def cmd_lock(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_admin_or_owner(update, context):
         return
     db.update_setting(update.effective_chat.id, "locked", 1)
-    await update.message.reply_text("🔒 ล็อคกลุ่ม! ห้ามส่งอะไร (ยกเว้นแอดมิน)")
+    await update.message.reply_text("🔒 ล็อคแล้ว!")
 
 async def cmd_unlock(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_admin_or_owner(update, context):
         return
     db.update_setting(update.effective_chat.id, "locked", 0)
-    await update.message.reply_text("🔓 ปลดล็อคกลุ่มแล้ว!")
+    await update.message.reply_text("🔓 ปลดล็อค!")
 
 async def cmd_logs(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_admin_or_owner(update, context):
         return
     logs = db.get_logs(update.effective_chat.id, 30)
     if not logs:
-        await update.message.reply_text("📜 ไม่มี log")
+        await update.message.reply_text("📜 ว่าง")
         return
-    text = "📜 **Logs ล่าสุด:**\n\n"
+    text = "📜 **Logs:**\n\n"
     for uid, reason, ts in logs:
-        try:
-            u = await context.bot.get_chat(uid)
-            name = u.first_name
-        except Exception:
-            name = str(uid)
-        text += f"• `{ts}`: {name} - {reason}\n"
+        text += f"• `{ts}` `{uid}`: {reason}\n"
     await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
 
 async def cmd_clearlogs(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -770,24 +734,22 @@ async def cmd_clearlogs(update: Update, context: ContextTypes.DEFAULT_TYPE):
     c = db.conn.cursor()
     c.execute("DELETE FROM violations_log WHERE chat_id = ?", (update.effective_chat.id,))
     db.conn.commit()
-    await update.message.reply_text("🗑️ ล้าง log แล้ว")
+    await update.message.reply_text("🗑️ ล้างแล้ว")
 
 async def cmd_purge(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_admin_or_owner(update, context):
         return
     if not context.args:
-        await update.message.reply_text("💡 /purge <จำนวน>")
         return
     try:
         n = int(context.args[0])
         deleted = 0
         async for msg in context.bot.get_chat_history(update.effective_chat.id, limit=n+1):
-            if msg.message_id >= update.message.message_id - n:
-                try:
-                    await msg.delete()
-                    deleted += 1
-                except Exception:
-                    pass
+            try:
+                await msg.delete()
+                deleted += 1
+            except Exception:
+                pass
         m = await update.message.reply_text(f"🧹 ลบ {deleted} ข้อความ")
         await asyncio.sleep(5)
         try:
@@ -815,11 +777,10 @@ async def cmd_chatinfo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         count = await context.bot.get_chat_member_count(chat.id)
     except Exception:
         count = "?"
-    text = f"""ℹ️ **ข้อมูลกลุ่ม:**
-• ชื่อ: {chat.title}
+    text = f"""ℹ️ **กลุ่ม:**
+• {chat.title}
 • ID: `{chat.id}`
 • สมาชิก: {count}
-• Type: {chat.type}
 """
     await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
 
@@ -837,29 +798,24 @@ async def cmd_userinfo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not user:
         user = update.effective_user
     warns = db.get_violations(user.id, update.effective_chat.id)
-    text = f"""👤 **ข้อมูล User:**
-• ชื่อ: {user.first_name}
-• Username: @{user.username if user.username else '-'}
+    text = f"""👤 **User:**
+• {user.first_name}
+• @{user.username or '-'}
 • ID: `{user.id}`
-• Warnings: {warns}
+• Warns: {warns}
 """
     await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
 
 async def cmd_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.reply_to_message:
         user = update.message.reply_to_message.from_user
-        await update.message.reply_text(f"👤 ID: `{user.id}`\n💬 Chat ID: `{update.effective_chat.id}`", parse_mode=ParseMode.MARKDOWN)
+        await update.message.reply_text(f"👤 `{user.id}`\n💬 `{update.effective_chat.id}`", parse_mode=ParseMode.MARKDOWN)
     else:
-        await update.message.reply_text(f"💬 Chat ID: `{update.effective_chat.id}`\n👤 Your ID: `{update.effective_user.id}`", parse_mode=ParseMode.MARKDOWN)
+        await update.message.reply_text(f"💬 `{update.effective_chat.id}`\n👤 `{update.effective_user.id}`", parse_mode=ParseMode.MARKDOWN)
 
 async def cmd_me(update: Update, context: ContextTypes.DEFAULT_TYPE):
     me = await context.bot.get_me()
-    await update.message.reply_text(f"""🤖 **ข้อมูลบอท:**
-• ชื่อ: {me.first_name}
-• Username: @{me.username}
-• ID: `{me.id}`
-• สถานะ: ออนไลน์ ✅
-""", parse_mode=ParseMode.MARKDOWN)
+    await update.message.reply_text(f"🤖 **{me.first_name}**\n@{me.username}\nID: `{me.id}`", parse_mode=ParseMode.MARKDOWN)
 
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -872,14 +828,14 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data_cb = query.data
     if data_cb == "status":
         s = db.get_settings(chat.id)
-        text = f"📊 Max warns: {s['max_warns']} | Mute: {s['mute_duration']//60}m | Locked: {bool(s['locked'])}"
+        text = f"📊 Warns: {s['max_warns']} | Mute: {s['mute_duration']//60}m"
         await query.edit_message_text(text)
     elif data_cb == "lock":
         db.update_setting(chat.id, "locked", 1)
-        await query.edit_message_text("🔒 ล็อคกลุ่มแล้ว!")
+        await query.edit_message_text("🔒 ล็อคแล้ว!")
     elif data_cb == "unlock":
         db.update_setting(chat.id, "locked", 0)
-        await query.edit_message_text("🔓 ปลดล็อคกลุ่มแล้ว!")
+        await query.edit_message_text("🔓 ปลดล็อค!")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message:
@@ -910,25 +866,25 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text or ""
     
     if settings["anti_link"] and detect_link(text):
-        reasons.append("🔗 ส่งลิ้งค์")
+        reasons.append("🔗 ลิ้งค์")
     if settings["anti_invite"] and detect_invite(text):
-        reasons.append("💌 ส่ง invite link")
+        reasons.append("💌 Invite")
     if settings["anti_username"] and detect_username_spam(text):
-        reasons.append("👤 @username เยอะเกิน")
+        reasons.append("👤 @User")
     if settings["anti_phone"] and detect_phone(text):
-        reasons.append("📞 เบอร์โทร")
+        reasons.append("📞 เบอร์")
     if settings["anti_crypto"] and any(c in text.lower() for c in ["btc", "eth", "usdt", "bitcoin", "crypto"]):
-        reasons.append("💰 คริปโต")
+        reasons.append("💰 Crypto")
     if settings["anti_gambling"] and any(g in text.lower() for g in ["บาคาร่า", "คาสิโน", "พนัน", "สล็อต", "หวย"]):
         reasons.append("🎰 พนัน")
     if settings["anti_badword"] and detect_badword(text):
         reasons.append("🤬 คำหยาบ")
     if detect_spam_word(text):
-        reasons.append("📢 คำสแปม")
+        reasons.append("📢 สแปม")
     if settings["anti_caps"] and is_caps(text):
-        reasons.append("🔠 ตัวพิมพ์ใหญ่")
+        reasons.append("🔠 Caps")
     if settings["anti_long_text"] and is_long_text(text):
-        reasons.append("📏 ข้อความยาว")
+        reasons.append("📏 ยาว")
     if settings["anti_line"] and has_many_lines(text):
         reasons.append("📝 หลายบรรทัด")
     if settings["anti_sticker"] and update.message.sticker:
@@ -936,7 +892,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if settings["anti_forward"] and update.message.forward_date:
         reasons.append("↪️ Forward")
     if settings["anti_image"] and update.message.photo:
-        reasons.append("🖼️ รูปภาพ")
+        reasons.append("🖼️ รูป")
     if settings["anti_voice"] and update.message.voice:
         reasons.append("🎤 เสียง")
     if settings["anti_video"] and update.message.video:
@@ -954,14 +910,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if len(last) >= 3:
             texts = [m[0] for m in last]
             if len(set(texts)) == 1:
-                reasons.append("📨 สแปมซ้ำ")
+                reasons.append("📨 ซ้ำ")
                 last.clear()
             elif len(last) >= 8:
-                reasons.append("📨 flood")
+                reasons.append("📨 Flood")
                 last.clear()
     
     if is_night_time(settings) and not reasons:
-        reasons.append("🌙 Night mode")
+        reasons.append("🌙 Night")
     
     if reasons:
         await punish(update, context, " | ".join(reasons))
@@ -977,7 +933,7 @@ async def welcome_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE)
             continue
         try:
             await update.message.reply_text(
-                f"{settings['welcome_message']}\n👋 ยินดีต้อนรับ {new_user.mention_html()}!",
+                f"{settings['welcome_message']}\n👋 {new_user.mention_html()}!",
                 parse_mode=ParseMode.HTML
             )
         except Exception:
@@ -990,18 +946,21 @@ def main():
         level=logging.INFO
     )
     
-    # ตรวจสอบว่าใช้ python-telegram-bot เวอร์ชั่นที่ compatible
     import telegram
     ptb_version = telegram.__version__
-    print(f"📦 python-telegram-bot version: {ptb_version}")
+    print(f"📦 python-telegram-bot: {ptb_version}")
     
-    if ptb_version.startswith("20.8") or ptb_version.startswith("20.9") or ptb_version.startswith("21"):
-        print("⚠️  WARNING: เวอร์ชั่นนี้มี bug กับ Python 3.13")
-        print("⚠️  แนะนำให้ใช้: pip install python-telegram-bot==20.7")
-        print("⚠️  หรือ: pip install python-telegram-bot==13.15")
+    # ตรวจสอบ version
+    major = int(ptb_version.split('.')[0])
+    if major < 21:
+        print("⚠️  ต้องใช้ python-telegram-bot 21.6+ สำหรับ Python 3.13")
+        print("⚠️  รัน: pip install --upgrade python-telegram-bot")
+        return
     
+    # PTB 21.x ไม่มี Updater แล้ว ใช้ Application ตรงๆ
     app = Application.builder().token(BOT_TOKEN).build()
     
+    # คำสั่งหลัก
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("help", cmd_help))
     app.add_handler(CommandHandler("status", cmd_status))
@@ -1057,7 +1016,7 @@ def main():
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_member))
     app.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, handle_message))
     
-    print("🤖 Bot v2.0 started!")
+    print("🤖 Bot v3.0 started!")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == "__main__":
